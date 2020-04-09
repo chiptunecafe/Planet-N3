@@ -1,6 +1,3 @@
-    .include "hw.asm"
-
-    .section init
 start
     sei
     ; init mapper
@@ -23,7 +20,7 @@ start
     inx ; $C000
     stx MAP_ADDR
     sta MAP_DATA
-    lda #1 ; horizontal mirroring
+    lda #2 ; 1-screen mirroring
     inx
     stx MAP_ADDR
     sta MAP_DATA
@@ -34,12 +31,35 @@ start
     lda #$40 ; inhibit APU frame IRQ
     sta JOY2
 
+    ldx #0
+    ldy #0
     ; wait until PPU is done initializing
     bit PPUSTATUS
 -   bit PPUSTATUS
     bpl -
 -   bit PPUSTATUS
     bpl -
+    ; determine the system type by cycle counting until the next VBlank
+    ; NTSC  = 29780 cycles / 12 = $9b1
+    ; PAL   = 33247 cycles / 12 = $ad2
+    ; Dendy = 35464 cycles / 12 = $b8b
+    .page
+-
+    iny ; 2
+    bne + ; 2/3
+    inx ; 2
++   bit PPUSTATUS ; 4
+    bpl - ; 3
+          ; = 12 (11)
+    lda #0
+    cpx #$9 ; NTSC
+    beq +
+    lda #1
+    cpx #$b ; Dendy
+    beq +
+    lda #3 ; PAL
++   sta z_timing
+    .endp
 
     ; transfer the tilemap
     lda #$20
@@ -53,24 +73,24 @@ start
     dex
     bne -
     lda #<nes19_tilemap
-    sta 0
+    sta A0
     lda #>nes19_tilemap
-    sta 1
+    sta A0+1
     ldx #20
 -
     ldy #0
 -
-    lda (0), y
+    lda (A0), y
     sta PPUDATA
     iny
     cpy #26
     bne -
     tya
     clc
-    adc 0
-    sta 0
+    adc A0
+    sta A0
     bcc +
-    inc 1
+    inc A0+1
 +
     lda #0
 -
@@ -117,59 +137,12 @@ start
 
 -   jmp -
 
-nmiv
-    bit PPUSTATUS ; read and clear VBlank occurred flag
-    pha
-    txa
-    pha
-
-timer = $41c4
-    ldx #MAP_TIM_HI
-    lda #>timer
-    stx MAP_ADDR
-    sta MAP_DATA
-    dex
-    lda #<timer
-    stx MAP_ADDR
-    sta MAP_DATA
-    dex
-    lda #$ff
-    stx MAP_ADDR
-    sta MAP_DATA
-    
-    lda #%10000000 ; tilemap 0, write +1, 8x8 sprite 0, bg 0, vblank on
-    sta PPUCTRL
-    pla
-    tax
-    pla
-    rti
-
-irqv
-    pha
-    lda #%10010000 ; tilemap 0, write +1, 8x8 sprite 0, bg 1, vblank on
-    sta PPUCTRL
-
-    lda #MAP_TIM_IRQ
-    sta MAP_ADDR
-    lda #0
-    sta MAP_DATA ; acknowledge and stop timer irq
-    pla
-    rti
-
 nes19_tilemap
-    .binary "nes19_tiles.bin"
+    .binary "../nes19_tiles.bin"
 nes19_attrmap
-    .binary "nes19_attrs.bin"
+    .binary "../nes19_attrs.bin"
 nes19_palette
     .byte $0d, $11, $22, $32
     .byte $0d, $17, $37, $30
     .byte $0d, $13, $23, $33
     .byte $0d, $1b, $2b, $3b
-
-    .send
-
-    .section cpuvec
-    .word nmiv
-    .word start
-    .word irqv
-    .send

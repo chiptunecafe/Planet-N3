@@ -5,12 +5,13 @@ PYTHON = python3
 .SUFFIXES:
 .PHONY: all clean
 .SECONDEXPANSION:
-.PRECIOUS: %.4bpp %.2bpp %.1bpp
+.PRECIOUS: %.2bpp %.1bpp
 
 includes = $(PYTHON) utils/incscan.py
 gfx = $(PYTHON) utils/gfx.py
 sources = \
-	init.asm
+	src/bss.asm \
+	src/home.asm
 
 all: planetn3.nes
 
@@ -25,5 +26,5 @@ clean:
 %.2bpp: %.png
 	$(gfx) 2bpp $<
 
-planetn3.nes: main.asm $(sources) $(shell $(includes) $(sources))
-	$(AS) $(FLAGS) -l planetn3.lst -o $@ main.asm $(sources)
+planetn3.nes: src/main.asm $(sources) $(shell $(includes) $(sources))
+	$(AS) $(FLAGS) -l planetn3.lst -o $@ src/main.asm $(sources)

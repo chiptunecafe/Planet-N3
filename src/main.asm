@@ -26,7 +26,7 @@ bank0
 
 home
     .logical $e000
-    .dsection init
+    .dsection home
 
     .fill $fffa - *, 0
     .dsection cpuvec
